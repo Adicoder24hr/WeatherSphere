@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Navbar from "./navigation/NavBar";
+import Navbar from "./navigation/Navbar";
 import MobileMenu from "./navigation/MobileMenu";
 
 const Layout = ({ children }) => {
