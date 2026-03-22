@@ -68,7 +68,7 @@ const HistoricalTempChart = ({ data }) => {
           </ResponsiveContainer>
         </div>
       </div>
-      <p className="text-xs text-slate-400 mt-3 text-center">Drag the brush to zoom • Scroll horizontally</p>
+      <p className="text-xs text-slate-400 mt-3 text-center">Drag the brush to zoom & Scroll horizontally</p>
     </div>
   );
 };
