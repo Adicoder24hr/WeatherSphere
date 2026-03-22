@@ -19,7 +19,7 @@ const formatWeatherData = (data) =>{
 
         wind: {
             speed: data.current.wind_speed_10m,
-            precipitationProb: data.daily.precipitation_probability_max?.[0] || "--",
+            precipitationProb: data.daily.precipitation_probability_max?.[0] ?? "--",
         },
 
         air: {

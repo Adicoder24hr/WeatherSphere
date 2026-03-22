@@ -134,7 +134,9 @@ const Dashboard = () => {
 
         <WeatherCard title="💨 Wind">
           <p>Speed: {formatted?.wind.speed || "--"} km/h</p>
-          <p>Precip Prob: {formatted?.wind.precipitationProb || "--"}%</p>
+          <p>
+            Precip Prob: {formatted?.wind.precipitationProb ?? "--"}%
+            {selectedDate !== today && <span className="text-xs text-slate-500 ml-2">(forecast only)</span>}</p>
         </WeatherCard>
 
         <div className="lg:col-span-3">
