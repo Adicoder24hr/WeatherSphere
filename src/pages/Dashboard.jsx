@@ -6,13 +6,18 @@ import LineChartComponent from "../components/charts/LineChartComponent";
 import MultiLinechart from "../components/charts/MultiLinechart";
 import Loading from "../components/ui/Loading";
 import Error from "../components/ui/Error";
+import useWeather from "../hooks/useWeather";
 
 const Dashboard = () => {
+  const { weather: todayWeather, loading: geoLoading, error: locationError, lat, lon } = useWeather();
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [unit, setUnit] = useState("C");
+  const [locationName, setLocationName] = useState("Detecting location...");
+  const isRealLocation = lat && lon;
 
   const convertTemp = (temp) => unit === "C" ? temp : (temp * 9 / 5) + 32;
 
@@ -23,27 +28,49 @@ const Dashboard = () => {
   const today = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
+    if (isRealLocation) {
+      fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=en`)
+        .then(res => res.json())
+        .then(data => {
+          const city = data.address?.city || data.address?.town || data.address?.state_district || "Your City";
+          const country = data.address?.country_code?.toUpperCase() || "";
+          setLocationName(`${city}, ${country}`);
+        })
+        .catch(() => setLocationName("Your current location"));
+    } else {
+      setLocationName("Nagpur (GPS access denied)");
+    }
+  }, [lat, lon, isRealLocation]);
+
+  useEffect(() => {
     const fetchSingleDay = async () => {
       setLoading(true);
       setError(null);
 
-      if(selectedDate > today) {
-        setError("Future dates are not supported yet. Please select today or a past date.");
+      const useLat = lat || 21.125;
+      const useLon = lon || 79;
+
+      if (selectedDate > today) {
+        setError("Future dates are not supported yet Please select today or a past date.");
         setLoading(false);
         return;
       }
 
       try {
-        const isToday = selectedDate === new Date().toISOString().split("T")[0];
-
+        const isToday = selectedDate === today;
         let data;
+
         if (isToday) {
-          const weatherRes = await fetchWeatherData(21.125, 79);
-          const airRes = await fetchAirQuality(21.125, 79);
-          data = { ...weatherRes, air: airRes };
+          if (todayWeather) {
+            data = todayWeather;
+          } else {
+            const weatherRes = await fetchWeatherData(useLat, useLon);
+            const airRes = await fetchAirQuality(useLat, useLon);
+            data = { ...weatherRes, air: airRes };
+          }
         } else {
-          const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=21.125&longitude=79&start_date=${selectedDate}&end_date=${selectedDate}&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&hourly=temperature_2m,relative_humidity_2m,precipitation,visibility,wind_speed_10m&timezone=auto`;
-          const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=21.125&longitude=79&start_date=${selectedDate}&end_date=${selectedDate}&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide&timezone=auto`;
+          const weatherUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${useLat}&longitude=${useLon}&start_date=${selectedDate}&end_date=${selectedDate}&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&hourly=temperature_2m,relative_humidity_2m,precipitation,visibility,wind_speed_10m&timezone=auto`;
+          const airUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${useLat}&longitude=${useLon}&start_date=${selectedDate}&end_date=${selectedDate}&hourly=pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide&timezone=auto`;
 
           const [weatherRes, airRes] = await Promise.all([
             fetch(weatherUrl).then(r => r.json()),
@@ -66,7 +93,7 @@ const Dashboard = () => {
         setWeatherData(data);
       } catch (err) {
         console.error("Fetch failed:", err);
-        setError(error);
+        setError(locationError || "Failed to fetch weather data");
         setWeatherData(null);
       } finally {
         setLoading(false);
@@ -74,32 +101,34 @@ const Dashboard = () => {
     };
 
     fetchSingleDay();
-  }, [selectedDate]);
+  }, [selectedDate, lat, lon, todayWeather, locationError, today]);
 
   const formatted = weatherData ? formatWeatherData(weatherData) : null;
 
-  if (loading){
+  if (loading || geoLoading) {
     return (
       <Loading 
-      displayDate={displayDate}
-      heading="Fetching weather for"
-      subHeading="Hang tight... this won't take long"
+        displayDate={displayDate}
+        heading="Fetching weather for"
+        subHeading="Hang tight... this won't take long"
       />
-    )
+    );
   }
 
-  if(error){
-    return (
-      <Error 
-      error={error} />
-    )
+  if (error || locationError) {
+    return <Error message={error || locationError} />;
   }
 
   return (
     <div className="space-y-8 md:space-y-12">
       <div className="bg-gradient-to-r from-blue-600 to-teal-500 rounded-3xl p-6 md:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <p className="text-sm opacity-80">{displayDate}</p>
+          <div className="flex gap-4 items-center">
+            <p className="text-sm opacity-80">{displayDate}</p>
+        <div className={`text-xs px-4 py-2 rounded-2xl flex items-center gap-2 ${isRealLocation ? 'bg-teal-400/10 text-teal-300' : 'bg-orange-400/10 text-orange-300'}`}>
+            📍 {locationName}
+          </div>
+          </div>
           <div className="text-5xl md:text-7xl font-bold mt-2">
             {formatted ? convertTemp(formatted.temperature.current).toFixed(1) : "--"}°{unit}
           </div>
@@ -136,7 +165,8 @@ const Dashboard = () => {
           <p>Speed: {formatted?.wind.speed || "--"} km/h</p>
           <p>
             Precip Prob: {formatted?.wind.precipitationProb ?? "--"}%
-            {selectedDate !== today && <span className="text-xs text-slate-500 ml-2">(forecast only)</span>}</p>
+            {selectedDate !== today && <span className="text-xs text-slate-500 ml-2">(forecast only)</span>}
+          </p>
         </WeatherCard>
 
         <div className="lg:col-span-3">

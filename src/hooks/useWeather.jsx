@@ -6,13 +6,17 @@ const useWeather = () => {
     const[weather, setWeather] = useState(null);
     const[loading, setLoading] = useState(true);
     const[error, setError] = useState(null);
+    const[lat, setLat] = useState(null);
+    const[lon, setLon] = useState(null);
 
     useEffect(()=>{
         navigator.geolocation.getCurrentPosition(
             async (position) =>{
-                try{
-                    const { latitude, longitude } = position.coords;
+                const { latitude, longitude } = position.coords;
 
+                    setLat(latitude);
+                    setLon(longitude);
+                try{
                     const weatherData = await fetchWeatherData(latitude, longitude);
                     const airData = await fetchAirQuality(latitude, longitude);
                     setWeather({
@@ -28,12 +32,14 @@ const useWeather = () => {
             },
             ()=>{
                 setError("Location access denied");
+                setLat(null);
+                setLon(null);
                 setLoading(false);
             }
         );
     }, [])
 
-  return { weather, loading, error };
+  return { weather, loading, error, lat, lon };
 }
 
 export default useWeather
