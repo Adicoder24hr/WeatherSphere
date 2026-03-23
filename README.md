@@ -17,6 +17,9 @@
 - Tailwind CSS
 - Open-Meteo API
 
+## Live Vercel Link
+- https://weather-sphere-yals.vercel.app/
+
 ## How to Run
 ```bash
 npm install
